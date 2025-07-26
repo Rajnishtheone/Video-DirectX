@@ -311,6 +311,8 @@ function App() {
     formData.append('text', textOverlay.text);
     formData.append('fontSize', textOverlay.size);
     formData.append('fontColor', textOverlay.color);
+    formData.append("x", textOverlay.x);
+    formData.append("y", textOverlay.y);
     // Optionally, send x, y, font, start, end, animation if backend supports
     try {
       const res = await fetch('http://localhost:5000/api/overlay/text', {

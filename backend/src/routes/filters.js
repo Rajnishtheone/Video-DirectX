@@ -53,8 +53,9 @@ router.post('/overlay/text', upload.single('video'), (req, res) => {
       });
     })
     .on('error', err => {
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
       res.status(500).json({ error: err.message });
-      fs.unlinkSync(inputPath);
     })
     .run();
 });
@@ -107,13 +108,21 @@ router.post('/audio/mute', upload.single('video'), (req, res) => {
 
 // Replace audio
 router.post('/audio/replace', upload.fields([{ name: 'video' }, { name: 'audio' }]), (req, res) => {
-  const inputPath = req.files['video'][0].path;
-  const audioPath = req.files['audio'][0].path;
-  const outputPath = path.join('uploads', `${Date.now()}-replaced-audio.mp4`);
+  // console.log("Files: ", req.files);
+  // console.log("Video file: ", req.files?.video?.[0]);
+  // console.log("Audio file: ", req.files?.audio?.[0]);
+
+  if (!req.files?.video || !req.files?.audio) {
+    return res.status(400).json({ error: 'Both video and audio files are required' });
+  }
+
+  const inputPath = path.resolve(req.files['video'][0].path);
+  const audioPath = path.resolve(req.files['audio'][0].path);
+  const outputPath = path.resolve('uploads', `${Date.now()}-replaced-audio.mp4`);
   ffmpeg()
     .input(inputPath)
     .input(audioPath)
-    .outputOptions('-map 0:v:0', '-map 1:a:0', '-c:v copy', '-shortest', '-movflags faststart')
+    .outputOptions(['-map 0:v:0', '-map 1:a:0', '-c:v copy', '-shortest', '-movflags faststart'])
     .output(outputPath)
     .on('end', () => {
       res.download(outputPath, () => {
@@ -121,6 +130,9 @@ router.post('/audio/replace', upload.fields([{ name: 'video' }, { name: 'audio' 
         fs.unlinkSync(audioPath);
         fs.unlinkSync(outputPath);
       });
+    })
+    .on('stderr', (stderrLine) => {
+      console.error('FFmpeg stderr:', stderrLine);
     })
     .on('error', err => {
       res.status(500).json({ error: err.message });
